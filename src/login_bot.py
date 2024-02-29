@@ -2,22 +2,37 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import ElementClickInterceptedException
-import time
+from selenium.webdriver.remote.webelement import WebElement
+from selenium.common.exceptions import *
 
 from bs4 import BeautifulSoup
+import json
+import time
 
 from src import settings
 
 
 class BaseLogin(object):
     def __init__(self, phonenumber):
+        self.chrome_options = webdriver.ChromeOptions()
+        self.chrome_options.add_argument(f'--user-data-dir={settings.PROFILES_FOLDER}')
+
         self.phonenumber = phonenumber
-        self.driver = webdriver.Chrome()
-        self.wait = WebDriverWait(self.driver, 60 * 5)
+        self.driver = webdriver.Chrome(options=self.chrome_options)
+        self.long_wait = WebDriverWait(self.driver, 60 * 5)
+        self.short_wait = WebDriverWait(self.driver, 500)
+
+        self.javascript_click = "arguments[0].click();"
+        self.javascript_localstorage = 'return JSON.stringify(localStorage);'
 
     def go_to_site(self, url):
-        self.driver.get(url)
+        while True:
+            try:
+                self.driver.get(url)
+                break
+            except WebDriverException:
+                print("check your internet connection or turn of your proxy!")
+                time.sleep(10)
 
     def insert_phonenumber(self):
         pass
@@ -25,16 +40,51 @@ class BaseLogin(object):
     def insert_name(self):
         pass
 
+    def element_clickable(self, data, selector_type='cls'):
+        # Wait until an element becomes stale (indicating page change)
+        if selector_type == 'cls':
+            return self.short_wait.until(EC.element_to_be_clickable((By.CLASS_NAME, data)))
+        elif selector_type == 'css':
+            return self.short_wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, data)))
+        elif selector_type == 'xpath':
+            return self.short_wait.until(EC.element_to_be_clickable((By.XPATH, data)))
+        else:
+            return self.short_wait.until(EC.element_to_be_clickable((By.ID, data)))
+
     def wait_for_update(self, data, selector_type='cls'):
         # Wait until an element becomes stale (indicating page change)
         if selector_type == 'cls':
-            self.wait.until(EC.presence_of_element_located((By.CLASS_NAME, data)))
+            self.long_wait.until(EC.presence_of_element_located((By.CLASS_NAME, data)))
         elif selector_type == 'css':
-            self.wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, data)))
+            self.long_wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, data)))
         elif selector_type == 'xpath':
-            self.wait.until(EC.presence_of_element_located((By.XPATH, data)))
+            self.long_wait.until(EC.presence_of_element_located((By.XPATH, data)))
         else:
-            self.wait.until(EC.presence_of_element_located((By.ID, data)))
+            self.long_wait.until(EC.presence_of_element_located((By.ID, data)))
+
+    def click_anyway(self, selector, select_type='xpath'):
+        while True:
+            try:
+                if select_type == 'xpath':
+                    self.driver.find_element(By.XPATH, selector).click()
+                elif select_type == 'id':
+                    self.driver.find_element(By.ID, selector).click()
+                elif select_type == 'cls':
+                    self.driver.find_element(By.CLASS_NAME, selector).click()
+                else:
+                    self.driver.find_element(By.CSS_SELECTOR, selector).click()
+                break
+            except ElementClickInterceptedException:
+                continue
+
+    @staticmethod
+    def clear_anyway(element: WebElement):
+        while True:
+            try:
+                element.clear()
+                break
+            except InvalidElementStateException:
+                continue
 
     def close_browser(self):
         self.driver.quit()
@@ -51,7 +101,7 @@ class EitaaLogin(BaseLogin):
         self.wait_for_update('input-field-input')
         self.insert_phonenumber()
         self.wait_for_update('avatar-edit-canvas')
-        self.name_input(settings.FIRST_NAME, settings.LAST_NAME, settings.PICTURE_PATH)
+        self.name_input(settings.FIRST_NAME, settings.LAST_NAME)
 
         menu_xpath = '//*[@id="column-left"]/div/div/div[1]/div[1]/div[2]/div[1]'
         self.wait_for_update(menu_xpath, 'xpath')
@@ -59,9 +109,6 @@ class EitaaLogin(BaseLogin):
 
         waiting_for_save_data = '/html/body/div[2]/div[1]/div[1]/div/div[2]/div[1]/div[1]'
         self.wait_for_update(waiting_for_save_data, 'xpath')
-
-
-        time.sleep(1000)
         self.close_browser()
 
     def insert_phonenumber(self):
@@ -73,7 +120,7 @@ class EitaaLogin(BaseLogin):
         btn_click = self.driver.find_element(By.CSS_SELECTOR, btn_cls_name)
         btn_click.click()
 
-    def name_input(self, fname, lname, profile_path):
+    def name_input(self, fname, lname):
         fname_xpath = '/html/body/div[1]/div/div[2]/div[5]/div/div[2]/div[1]/div[1]'
         lname_xpath = '/html/body/div[1]/div/div[2]/div[5]/div/div[2]/div[2]/div[1]'
 
@@ -102,8 +149,8 @@ class EitaaLogin(BaseLogin):
 
         self.wait_for_update(pencil_xpath, 'xpath')
 
-        element = WebDriverWait(self.driver, 10).until(EC.element_to_be_clickable((By.XPATH, pencil_xpath)))
-        element.click()
+        pencil_element = self.element_clickable(pencil_xpath, 'xpath')
+        pencil_element.click()
 
         self.wait_for_update(avatar_xpath, 'xpath')
 
@@ -118,21 +165,6 @@ class EitaaLogin(BaseLogin):
         confirm_element = self.driver.find_element(By.XPATH, confirm_btn_xpath)
         confirm_element.click()
 
-    def click_anyway(self, selector, select_type='xpath'):
-        while True:
-            try:
-                if select_type == 'xpath':
-                    self.driver.find_element(By.XPATH, selector).click()
-                elif select_type == 'id':
-                    self.driver.find_element(By.ID, selector).click()
-                elif select_type == 'cls':
-                    self.driver.find_element(By.CLASS_NAME, selector).click()
-                else:
-                    self.driver.find_element(By.CSS_SELECTOR, selector).click()
-                break
-            except ElementClickInterceptedException:
-                continue
-
 
 class RubikaLogin(BaseLogin):
     def __init__(self, phonenumber):
@@ -140,15 +172,18 @@ class RubikaLogin(BaseLogin):
 
         self.go_to_site(settings.LOGIN_RUBIKA)
 
+        self.localstorage = dict()
+
     def main(self):
         input_xpath = '//*[@id="auth-pages"]/div/div[2]/div[1]/div/div[3]/div[3]/input[1]'
         self.wait_for_update(input_xpath, 'xpath')
-        rubika.insert_phonenumber()
-        self.wait_for_update('//*[@id="chats"]/rb-chats/div[1]/div[1]/div[2]/div/div', 'xpath')
+        self.insert_phonenumber()
+        self.element_clickable('//*[@id="chats"]/rb-chats/div[1]/div[1]/div[2]/div', 'xpath')
         self.set_name(settings.FIRST_NAME, settings.LAST_NAME, settings.PICTURE_PATH)
-        print('yesssss')
-        time.sleep(6000)
+
+        self.localstorage = json.loads(self.driver.execute_script(self.javascript_localstorage))
         self.close_browser()
+        return self.localstorage
 
     def insert_phonenumber(self):
         input_xpath = '//*[@id="auth-pages"]/div/div[2]/div[1]/div/div[3]/div[3]/input[1]'
@@ -161,29 +196,35 @@ class RubikaLogin(BaseLogin):
         btn_element.click()
 
     def set_name(self, fname, lname, profile_path):
+
         menu_xpath = '//*[@id="chats"]/rb-chats/div[1]/div[1]/div[2]/div'
+
         menu_element = self.driver.find_element(By.XPATH, menu_xpath)
         menu_element.click()
 
         setting_xpath = '/html/body/div[2]/div[3]/div'
-        setting_element = WebDriverWait(self.driver, 10).until(EC.element_to_be_clickable((By.XPATH, setting_xpath)))
+        setting_element = self.element_clickable(setting_xpath, 'xpath')
         setting_element.click()
 
         edit_xpath = '//*[@id="1000"]/app-setting-modal/div[2]/div/div/div[3]/div/div/div/button[1]/div'
-        self.wait_for_update(edit_xpath, 'xpath')
-        print('test')
-        edit_element = WebDriverWait(self.driver, 10).until(EC.element_to_be_clickable((By.XPATH, edit_xpath))) 
-        edit_element.click()
+        edit_element = self.element_clickable(edit_xpath, 'xpath')
 
-        input_fname_xpath = '//*[@id="modal-profile-edit"]/modal-profile-edit/div[2]/div/div[1]/div/div/form/div[1]'
-        input_lname_xpath = '//*[@id="modal-profile-edit"]/modal-profile-edit/div[2]/div/div[1]/div/div/form/div[2]'
+        self.driver.execute_script(self.javascript_click, edit_element)
 
-        self.wait_for_update(input_fname_xpath, 'xpath')
-        input_fname_element = self.driver.find_element(By.XPATH, input_fname_xpath)
+        input_fname_xpath = ('/html/body/app-root/div/div/div[1]/sidebar-container/div/sidebar-view['
+                             '1]/div/modal-profile-edit/div[2]/div/div[1]/div/div/form/div[1]/input')
+        input_lname_xpath = ('/html/body/app-root/div/div/div[1]/sidebar-container/div/sidebar-view['
+                             '1]/div/modal-profile-edit/div[2]/div/div[1]/div/div/form/div[2]/input')
+
+        input_fname_element = self.element_clickable(input_fname_xpath, 'xpath')
         input_lname_element = self.driver.find_element(By.XPATH, input_lname_xpath)
         file_input = self.driver.find_element(By.CSS_SELECTOR, "input[type='file']")
-
-        input_fname_element.clear()
+        while True:
+            try:
+                input_fname_element.clear()
+                break
+            except InvalidElementStateException:
+                continue
         input_fname_element.send_keys(fname)
 
         input_lname_element.clear()
@@ -192,14 +233,12 @@ class RubikaLogin(BaseLogin):
         file_input.send_keys(profile_path)
 
         ok_btn_xpath = '//*[@id="modal-avatar-resize"]/div/modal-avatar-resize/button/div/div'
-        ok_btn = WebDriverWait(self.driver, 10).until(EC.element_to_be_clickable((By.XPATH, ok_btn_xpath)))
-        ok_btn = self.driver.find_element(By.XPATH, ok_btn_xpath)
-        ok_btn.click()
+        ok_btn = self.element_clickable(ok_btn_xpath, 'xpath')
+        self.driver.execute_script(self.javascript_click, ok_btn)
 
         final_btn_xpath = '//*[@id="modal-profile-edit"]/modal-profile-edit/div[2]/button/div/div'
-        final_btn = WebDriverWait(self.driver, 10).until(EC.element_to_be_clickable((By.XPATH, final_btn_xpath)))
-        final_btn = self.driver.find_element(By.XPATH, final_btn_xpath)
-        final_btn.click()
+        final_btn = self.element_clickable(final_btn_xpath, 'xpath')
+        self.driver.execute_script(self.javascript_click, final_btn)
         self.wait_for_update(edit_xpath, 'xpath')
 
 
@@ -207,6 +246,7 @@ class SoroushLogin(BaseLogin):
     def __init__(self, phonenumber):
         super(SoroushLogin, self).__init__(phonenumber)
 
+        self.confirm_number_btn_params = {'class': 'Button default primary has-ripple'}
         self.go_to_site(settings.LOGIN_SOROUSH)
 
     def main(self):
@@ -230,7 +270,7 @@ class SoroushLogin(BaseLogin):
 
         insert_element.clear()
         insert_element.send_keys(self.phonenumber)
-        time.sleep(3)
+
         btn_element.click()
 
     def name_input(self, fname, lname, profile_path):
@@ -258,6 +298,30 @@ class SoroushLogin(BaseLogin):
 
         btn_element.click()
 
+    @staticmethod
+    def timer(second):
+        time.sleep(second)
 
-soroush = SoroushLogin('989394551092')
-soroush.main()
+    @staticmethod
+    def get_btn_status(src, **kwargs):
+        soup = BeautifulSoup(src, 'html.parser')
+        btn_src = soup.find('button', attrs=kwargs)
+        if btn_src is not None:
+            return btn_src.text
+        return False
+
+
+# TODO: complete this
+class IgapLogin(BaseLogin):
+    pass
+
+
+# TODO: complete this
+class BaleLogin(BaseLogin):
+    pass
+
+
+if __name__ == '__main__':
+    # for tests
+    rubika = RubikaLogin('9944200642')
+    rubika.main()

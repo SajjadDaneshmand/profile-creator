@@ -21,6 +21,8 @@ BASE_CHROME_NAME = 'User Data'
 INSTANCE_CHROME_NAME = 'Chrome'
 INSTANCE_PATH = os.path.join(HOME_FOLDER, 'Desktop', 'Chrome')
 
+PROFILES_FOLDER = os.path.join(BASE_DIR, 'profiles')
+
 # logins
 LOGIN_EITAA = 'https://web.eitaa.com/'
 LOGIN_BALE = 'https://web.bale.ai/login'
@@ -28,7 +30,10 @@ LOGIN_IGAP = 'https://web.igap.net/'
 LOGIN_RUBIKA = 'https://web.rubika.ir/'
 LOGIN_SOROUSH = 'https://web.splus.ir/'
 
+# registered platforms
+REGISTERED_PLATFORM = ['soroush', 'rubika']
+
 # TODO: write the true path
-PICTURE_PATH = os.path.join(BASE_DIR, 'test.jpeg')
-FIRST_NAME = 'sina'
-LAST_NAME = 'hoseini'
+PICTURE_PATH = os.path.join(BASE_DIR, 'test.jpg')
+FIRST_NAME = 'mohammad'
+LAST_NAME = 'noory'
