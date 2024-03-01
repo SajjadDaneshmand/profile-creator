@@ -39,11 +39,14 @@ class Folders(object):
                 persian_num = match.group(1)
                 eng_num = self.convert_num(self.nums_dict, persian_num)
                 folder_nums.append(eng_num)
+                folder_nums = [int(num) for num in folder_nums]
+                folder_nums.sort()
+                final_num = str(folder_nums[-1] + 1)
+                return self.convert_num(self.revert_dict(self.nums_dict), final_num)
 
-        folder_nums = [int(num) for num in folder_nums]
-        folder_nums.sort()
-        final_num = str(folder_nums[-1] + 1)
-        return self.convert_num(self.revert_dict(self.nums_dict), final_num)
+        return self.convert_num(self.revert_dict(self.nums_dict), '1')
+
+
 
     @staticmethod
     def convert_num(dictionary: dict, persian_num: str):

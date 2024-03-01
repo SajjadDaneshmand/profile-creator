@@ -33,7 +33,6 @@ LOGIN_SOROUSH = 'https://web.splus.ir/'
 # registered platforms
 REGISTERED_PLATFORM = ['soroush', 'rubika']
 
-# TODO: write the true path
-PICTURE_PATH = os.path.join(BASE_DIR, 'test.jpg')
-FIRST_NAME = 'mohammad'
-LAST_NAME = 'noory'
+# config file
+CONFIG_FILE = 'configs.json'
+CONFIG_PATH = os.path.join(BASE_DIR, CONFIG_FILE)

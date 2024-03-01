@@ -9,15 +9,20 @@ from bs4 import BeautifulSoup
 import json
 import time
 
-from src import settings
+from . import settings
 
 
 class BaseLogin(object):
-    def __init__(self, phonenumber):
-        self.chrome_options = webdriver.ChromeOptions()
-        self.chrome_options.add_argument(f'--user-data-dir={settings.PROFILES_FOLDER}')
-
+    def __init__(self, phonenumber, first_name, last_name, profile_path, base_dir):
         self.phonenumber = phonenumber
+        self.first_name = first_name
+        self.last_name = last_name
+        self.profile_path = profile_path
+        self.base_dir = base_dir
+
+        self.chrome_options = webdriver.ChromeOptions()
+        self.chrome_options.add_argument(f'--user-data-dir={self.base_dir}')
+
         self.driver = webdriver.Chrome(options=self.chrome_options)
         self.long_wait = WebDriverWait(self.driver, 60 * 5)
         self.short_wait = WebDriverWait(self.driver, 500)
@@ -92,8 +97,8 @@ class BaseLogin(object):
 
 # TODO: rewrite this
 class EitaaLogin(BaseLogin):
-    def __init__(self, phonenumber):
-        super(EitaaLogin, self).__init__(phonenumber)
+    def __init__(self, phonenumber, first_name, last_name, profile_path, base_dir):
+        super(EitaaLogin, self).__init__(phonenumber, first_name, last_name, profile_path, base_dir)
 
         self.go_to_site(settings.LOGIN_EITAA)
 
@@ -101,11 +106,11 @@ class EitaaLogin(BaseLogin):
         self.wait_for_update('input-field-input')
         self.insert_phonenumber()
         self.wait_for_update('avatar-edit-canvas')
-        self.name_input(settings.FIRST_NAME, settings.LAST_NAME)
+        self.name_input(self.first_name, self.last_name)
 
         menu_xpath = '//*[@id="column-left"]/div/div/div[1]/div[1]/div[2]/div[1]'
         self.wait_for_update(menu_xpath, 'xpath')
-        self.set_profile(settings.PICTURE_PATH)
+        self.set_profile(self.profile_path)
 
         waiting_for_save_data = '/html/body/div[2]/div[1]/div[1]/div/div[2]/div[1]/div[1]'
         self.wait_for_update(waiting_for_save_data, 'xpath')
@@ -167,8 +172,8 @@ class EitaaLogin(BaseLogin):
 
 
 class RubikaLogin(BaseLogin):
-    def __init__(self, phonenumber):
-        super(RubikaLogin, self).__init__(phonenumber)
+    def __init__(self, phonenumber, first_name, last_name, profile_path, base_dir):
+        super(RubikaLogin, self).__init__(phonenumber, first_name, last_name, profile_path, base_dir)
 
         self.go_to_site(settings.LOGIN_RUBIKA)
 
@@ -179,7 +184,7 @@ class RubikaLogin(BaseLogin):
         self.wait_for_update(input_xpath, 'xpath')
         self.insert_phonenumber()
         self.element_clickable('//*[@id="chats"]/rb-chats/div[1]/div[1]/div[2]/div', 'xpath')
-        self.set_name(settings.FIRST_NAME, settings.LAST_NAME, settings.PICTURE_PATH)
+        self.set_name(self.first_name, self.last_name, self.profile_path)
 
         self.localstorage = json.loads(self.driver.execute_script(self.javascript_localstorage))
         self.close_browser()
@@ -243,8 +248,8 @@ class RubikaLogin(BaseLogin):
 
 
 class SoroushLogin(BaseLogin):
-    def __init__(self, phonenumber):
-        super(SoroushLogin, self).__init__(phonenumber)
+    def __init__(self, phonenumber, first_name, last_name, profile_path, base_dir):
+        super(SoroushLogin, self).__init__(phonenumber, first_name, last_name, profile_path, base_dir)
 
         self.confirm_number_btn_params = {'class': 'Button default primary has-ripple'}
         self.go_to_site(settings.LOGIN_SOROUSH)
@@ -253,7 +258,7 @@ class SoroushLogin(BaseLogin):
         self.wait_for_update('sign-in-phone-number', 'id')
         self.insert_phonenumber()
         self.wait_for_update('registration-first-name', 'id')
-        self.name_input('sajjad', 'daneshmand', settings.PICTURE_PATH)
+        self.name_input(self.first_name, self.last_name, self.profile_path)
         self.wait_for_update('Main', 'id')
 
         menu_xpath = '//*[@id="LeftMainHeader"]/div[2]/button'
@@ -319,9 +324,3 @@ class IgapLogin(BaseLogin):
 # TODO: complete this
 class BaleLogin(BaseLogin):
     pass
-
-
-if __name__ == '__main__':
-    # for tests
-    rubika = RubikaLogin('9944200642')
-    rubika.main()
